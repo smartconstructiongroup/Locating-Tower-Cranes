@@ -1,0 +1,265 @@
+/*********************************************
+ * OPL 12.10.0.0 Model
+ * Author: Mahdi Ahmadnia
+ * Creation Date: Jan 9, 2023 at 4:59:24 AM
+ *********************************************/
+int NI = ...;               
+int NJ = ...;               
+int NM = ...;               
+int NK = ...;               
+int NL = ...;               
+
+range I = 1 .. NI;
+range J = 1 .. NJ;
+range M = 1 .. NM;
+range K = 1 .. NK;
+range L = 1 .. NL;
+
+// parameters:
+int T_bar_Loading[m in M] = ...;      
+int T_bar_Unloading[m in M] = ...;    
+int T_t[i in I][j in J][m in M][k in K][l in L] = ...;  
+int T_empty[i in I][j in J][k in K][l in L] = ...;
+int C_bar_energy[i in I][j in J][m in M][k in K][l in L] = ...;
+int C_empty_energy[i in I][j in J][k in K][l in L] = ...;
+int ND_min = ...;
+int ND_max = ...;
+int T_Working[k in K][l in L] = ...;
+int C_bar_delay = ...;
+int d[j in J][m in M] = ...;
+int meyo_max[i in I][m in M] = ...;
+int U_supply_point = ...;
+int U_bar_supply_point = ...;
+int C_bar_supply[i in I] = ...;
+//int C_2bar_supply[i in I][m in M] = ...;
+int U_crane = ...;
+int C_bar_installation[k in K][l in L] = ...;
+int C_bar_rental[k in K] = ...;
+int C_bar_salary = ...;
+int gamma[i in I][j in J][m in M][k in K][l in L] = ...;
+int O[k in K][l in L][kp in K][lp in L] = ...;
+int U_overlap[k in K][l in L][kp in K][lp in L] = ...;
+int C_bar_overlap = ...;
+int tav[i in I][j in J][k in K][l in L][jp in J] = ...; //boolean
+int h[k in K][l in L][kp in K][lp in L] = ...;
+float C_bar_Unload = ...;
+int tav_bar[ip in I][jp in J][kp in K][lp in L][i in I] = ...;
+float C_bar_Loading = ...;
+int C_bar_cross = ...;
+int tav_2bar[i in I][j in J][k in K][l in L][lp in L] = ...;
+
+
+
+
+
+int M1 = ...;     
+int M2 = ...;      
+int M3 = ...;     
+int M4 = ...;     
+int M5 = ...;
+int M6 = ...;
+int M7 = ...;
+int M8 = ...;
+// variables:
+dvar float+ x[i in I][j in J][m in M][k in K][l in L];               
+dvar int+ Landa[i in I][j in J][m in M][k in K][l in L];
+dvar float+ T_crane[k in K][l in L];
+dvar float+ ND;
+dvar boolean y_Unload[j in J][k in K][l in L];
+dvar float+ meyo[i in I][m in M];
+dvar boolean omega[i in I];
+dvar boolean omega_bar[i in I][m in M];
+dvar boolean landa[k in K][l in L];
+dvar float+ A_1[k in K][l in L];
+dvar float+ A_2[k in K][l in L][kp in K][lp in L];
+dvar float+ T_2bar_unloading[j in J][k in K][l in L];
+dvar float+ A_3[j in J][k in K][l in L];
+dvar float+ T_2bar_Loading[i in I][k in K][l in L];
+dvar boolean y_Loading[i in I][k in K][l in L];
+dvar float+ A_4[i in I][k in K][l in L];
+dvar boolean y_cross[i in I][j in J][k in K][l in L];
+dvar float+ A_5[i in I][j in J][m in M][k in K][l in L];
+dvar float+ ND_delay;
+dvar boolean teta[i in I][j in J][k in K][l in L];  
+
+//objective funection:
+dexpr float C_energy = ND_min* sum (i in I, j in J, m in M, k in K, l in L) (Landa[i][j][m][k][l]*T_t[i][j][m][k][l]*C_bar_energy[i][j][m][k][l] + Landa[i][j][m][k][l]*T_empty[i][j][k][l]*C_empty_energy[i][j][k][l]) ;
+dexpr float C_delay = ND_delay * C_bar_delay;
+dexpr float C_supply = sum(i in I) omega[i]*C_bar_supply[i];
+dexpr float C_installation = sum (k in K, l in L) landa [k][l]*C_bar_installation[k][l];
+dexpr float C_rental = sum (k in K, l in L) A_1[k][l]*C_bar_rental[k];
+dexpr float C_salary = sum (k in K, l in L) (A_1[k][l]*C_bar_salary);  
+
+dexpr float C_Unload = ND_min*sum (j in J, k in K, l in L)  A_3[j][k][l]*C_bar_Unload;
+dexpr float C_Loading = ND_min*sum (i in I, k in K, l in L) A_4[i][k][l]*C_bar_Loading;
+dexpr float C_cross = ND_min*sum (i in I, j in J, m in M, k in K, l in L) A_5[i][j][m][k][l]*C_bar_cross;
+
+minimize C_energy + C_delay + C_supply + C_installation + C_rental + C_salary + C_Unload + C_Loading + C_cross;
+subject to {
+ 
+
+  
+ ND>=ND_min;
+ ND<= ND_max;
+ ND_delay == ND - ND_min;
+
+
+forall (k in K, l in L)
+  T_crane[k][l] == sum(i in I, j in J, m in M) (T_bar_Loading[m] + T_t[i][j][m][k][l] + T_empty[i][j][k][l] + T_bar_Unloading[m])*Landa[i][j][m][k][l];
+  
+forall (k in K, l in L)
+  ND_min*T_crane[k][l] <= ND*T_Working[k][l];
+  
+forall (j in J, m in M)
+  sum(i in I, k in K, l in L) x[i][j][m][k][l] == d[j][m];
+  
+ 
+forall (i in I, m in M)
+  sum(j in J, k in K, l in L) x[i][j][m][k][l] <= meyo[i][m];
+  
+forall(i in I)
+  sum (m in M) (meyo[i][m]/(2*meyo_max[i][m])) <= omega[i];
+
+forall (i in I)
+  omega[i] <= sum (m in M) meyo[i][m];
+  
+sum(i in I) omega[i] <= U_supply_point;
+ 
+forall(i in I, m in M)
+  meyo[i][m]/(2*meyo_max[i][m]) <= omega_bar[i][m];
+forall(i in I, m in M)
+  omega_bar[i][m] <= meyo[i][m];
+
+forall (i in I)  
+ sum(m in M) omega_bar[i][m] <= U_bar_supply_point;
+ 
+forall(k in K ,l in L)
+  landa[k][l] >= (1/M2)* sum(i in I, j in J, m in M) x[i][j][m][k][l];
+
+forall(k in K ,l in L)
+  landa[k][l] <=  sum(i in I, j in J, m in M) x[i][j][m][k][l];
+  
+forall (l in L)  
+  sum (k in K) landa [k][l] <=1;
+  
+sum (k in K, l in L) landa [k][l] <= U_crane;
+
+forall ( i in I, j in J, m in M, k in K, l in L)  
+   x[i][j][m][k][l] <= Landa[i][j][m][k][l] * gamma[i][j][m][k][l];
+forall ( i in I, j in J, m in M, k in K, l in L)  
+  Landa[i][j][m][k][l] * gamma[i][j][m][k][l] <= x[i][j][m][k][l] + gamma[i][j][m][k][l];
+
+
+// safety
+
+forall(k in K , l in L , kp in K , lp in L)
+   A_2[k][l][kp][lp]*O[k][l][kp][lp] <= U_overlap[k][l][kp][lp];
+
+forall(k in K , l in L , kp in K , lp in L)
+  if (l != lp)
+  A_2[k][l][kp][lp] >= landa[k][l] + landa [kp][lp] - 1;
+  
+forall(k in K , l in L , kp in K , lp in L)
+  if (l == lp)
+  A_2[k][l][kp][lp] == 0;
+  
+forall(k in K , l in L , kp in K , lp in L)
+  A_2[k][l][kp][lp] <= landa[kp][lp];
+
+forall(k in K , l in L , kp in K , lp in L)
+  A_2[k][l][kp][lp] <= landa[k][l];
+ 
+/////////////////////////////////////////////////////////////////////////////////////
+
+
+
+/////////////////////////////////////////////////////////////////////// unload overlap
+forall (j in J, k in K, l in L)
+  M1*y_Unload[j][k][l] >= sum (ip in I, jp in J, mp in M, kp in K, lp in L) x[ip][jp][mp][kp][lp]*tav[ip][jp][kp][lp][j]*h[k][l][kp][lp];
+
+forall (j in J, k in K, l in L)  
+  T_2bar_unloading[j][k][l] == sum (i in I, m in M) T_bar_Unloading[m]*Landa[i][j][m][k][l];
+  
+//////////////////////////////////////////////////////////////////////// load over;ap
+
+forall (i in I, k in K, l in L)
+  M1*y_Loading[i][k][l] >= sum (ip in I, jp in J, mp in M, kp in K, lp in L) x[ip][jp][mp][kp][lp]*tav_bar[ip][jp][kp][lp][i]*h[k][l][kp][lp];
+
+
+forall (i in I, k in K, l in L) 
+  T_2bar_Loading[i][k][l] == sum (j in J, m in M) T_bar_Loading[m]*Landa[i][j][m][k][l];
+  
+  
+  
+///////////////////////////////////////////////////////////// cross overlap
+forall (i in I, j in J, k in K, l in L)
+y_cross[i][j][k][l]>= (1/M6)*sum(jp in J, kp in K, lp in L) T_2bar_unloading[jp][kp][lp]*tav[i][j][k][l][jp]*h[kp][lp][k][l];
+
+forall (i in I, j in J, k in K, l in L)
+y_cross[i][j][k][l]>= (1/M6)*sum(ip in I, kp in K, lp in L) T_2bar_Loading[ip][kp][lp]*tav_bar[i][j][k][l][ip]*h[kp][lp][k][l];
+
+
+
+/
+forall (i in I, j in J, k in K, l in L, kp in K, lp in L)
+  landa[kp][lp]*tav_2bar[i][j][k][l][lp]*h[kp][lp][k][l] <= teta[i][j][k][l];
+
+forall (i in I, j in J, m in M, k in K, l in L)
+  x[i][j][m][k][l] <= (1-teta[i][j][k][l])*M8;
+
+
+
+
+
+//////////////////////////////////////// ?????????///////////////// liner ---- object funaction
+
+//////////////////////////////////////// const A_1
+forall (k in K, l in L)
+  A_1[k][l] <= M3*landa[k][l];
+          
+forall (k in K, l in L)
+  A_1[k][l] <= ND;
+
+forall (k in K, l in L)
+  constwww:
+  A_1[k][l] >= ND - (1-landa[k][l])*M3;  
+  //////////////////////////////////////////// end cost A_1
+  
+
+
+//////////////////////////////////////// A_3
+forall (j in J, k in K, l in L)
+  A_3[j][k][l] <= M4*y_Unload[j][k][l];  
+ 
+forall (j in J, k in K, l in L)
+  A_3[j][k][l] <= T_2bar_unloading[j][k][l];
+  
+forall (j in J, k in K, l in L)
+  A_3[j][k][l] >= T_2bar_unloading[j][k][l] - (1-y_Unload[j][k][l])*M4;
+  
+  
+ //////////////////////////////////////// A_4 
+  forall (i in I, k in K, l in L)
+  A_4[i][k][l] <= M5*y_Loading[i][k][l];  
+ 
+forall (i in I, k in K, l in L)
+  A_4[i][k][l] <= T_2bar_Loading[i][k][l];
+  
+forall (i in I, k in K, l in L)
+  A_4[i][k][l] >= T_2bar_Loading[i][k][l] - (1-y_Loading[i][k][l])*M5;
+  
+  
+  //////////////////////////////////////////// A_5
+ forall (i in I, j in J, m in M, k in K, l in L)
+  A_5[i][j][m][k][l] <= M7*y_cross[i][j][k][l];  
+ 
+forall (i in I, j in J, m in M, k in K, l in L)
+  A_5[i][j][m][k][l] <= Landa[i][j][m][k][l];
+  
+forall (i in I, j in J, m in M, k in K, l in L)
+  A_5[i][j][m][k][l] >= Landa[i][j][m][k][l] - (1-y_cross[i][j][k][l])*M7;
+   
+   
+ 
+
+}
